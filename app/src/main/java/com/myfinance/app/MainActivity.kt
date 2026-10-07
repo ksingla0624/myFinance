@@ -16,6 +16,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(b: Bundle?) {
         super.onCreate(b)
+        if (android.os.Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf("android.permission.POST_NOTIFICATIONS"), 2)
         wv = WebView(this); setContentView(wv)
         wv.settings.javaScriptEnabled = true
         wv.settings.domStorageEnabled = true
@@ -42,6 +43,7 @@ class MainActivity : Activity() {
             if (u != null) contentResolver.openOutputStream(u)?.use { it.write(text.toByteArray()) }
             runOnUiThread { Toast.makeText(this@MainActivity, "Saved to Downloads: $name", Toast.LENGTH_LONG).show() }
         }
+        @JavascriptInterface fun schedule(json: String) { Sched.run(this@MainActivity, json) }
         @JavascriptInterface fun share(name: String, text: String) {
             val f = File(cacheDir, name); f.writeText(text)
             val u = FileProvider.getUriForFile(this@MainActivity, "com.myfinance.app.fp", f)
