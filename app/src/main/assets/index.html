@@ -27,7 +27,7 @@ nav button.on{color:var(--g);box-shadow:inset 0 3px var(--g)}
 .bar{height:8px;background:var(--ln);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--g)}
 .x{background:none;color:var(--db);width:auto;padding:0 6px}
 </style></head><body>
-<header>My Finance</header><main id="v"></main>
+<header style="display:flex;align-items:center;gap:10px"><svg width="30" height="30" viewBox="22 22 64 64"><circle cx="54" cy="54" r="28" fill="#fff"/><path fill="#14532D" d="M42 68h6V58h-6zM51 68h6V50h-6zM60 68h6V42h-6z"/></svg>My Finance</header><main id="v"></main>
 <nav id="n"></nav>
 <script>
 const MODES=['Cash','UPI','Debit Card','Credit Card','Net Banking','Cheque'];
@@ -35,40 +35,40 @@ let D;try{D=JSON.parse(localStorage.fin)}catch(e){}
 D=D||{accounts:[{id:1,name:'Main Bank',open:0}],txns:[],loans:[]};
 const $=s=>document.querySelector(s),uid=()=>Date.now()+Math.random(),inr=n=>'₹'+(+n).toLocaleString('en-IN',{maximumFractionDigits:2});
 const today=()=>new Date().toISOString().slice(0,10);
-function save(){localStorage.fin=JSON.stringify(D)}
+function save(){localStorage.fin=JSON.stringify(D);try{sched()}catch(e){}}
 let tab='home',F={from:'',to:'',q:''};
-const tabs={home:'Home',txn:'Entries',loan:'Loans',rep:'Reports',set:'Sync'};
+const tabs={home:'Home',txn:'Entries',due:'Due',loan:'Loans',rep:'Reports',set:'Sync'};
 function bal(a){return +a.open+D.txns.filter(t=>t.acc==a.id).reduce((s,t)=>s+(t.type=='credit'?+t.amt:-t.amt),0)}
 function go(t){tab=t;render()}
 function render(){
 $('#n').innerHTML=Object.entries(tabs).map(([k,v])=>`<button class="${k==tab?'on':''}" onclick="go('${k}')">${v}</button>`).join('');
-$('#v').innerHTML=({home,txn,loan,rep,set})[tab]();}
+$('#v').innerHTML=({home,txn,due,loan,rep,set})[tab]();}
 function opts(){return D.accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('')}
 function home(){
-const tot=D.accounts.reduce((s,a)=>s+bal(a),0),m=today().slice(0,7);
+const e=D.txns.find(t=>t.id==E)||{},tot=D.accounts.reduce((s,a)=>s+bal(a),0),m=today().slice(0,7);
 const mt=D.txns.filter(t=>t.date.startsWith(m)),c=mt.filter(t=>t.type=='credit').reduce((s,t)=>s+ +t.amt,0),d=mt.filter(t=>t.type=='debit').reduce((s,t)=>s+ +t.amt,0);
 return `<div class="card"><div class="m">Total balance</div><div class="big">${inr(tot)}</div>
 <div class="row"><div><span class="m">This month in</span><div class="cr">${inr(c)}</div></div><div><span class="m">This month out</span><div class="db">${inr(d)}</div></div></div></div>
 <div class="card"><h3>Accounts</h3>${D.accounts.map(a=>`<div class="t"><span>${a.name}</span><b>${inr(bal(a))}</b></div>`).join('')}
 <div class="row"><input id="an" placeholder="New account name"><input id="ao" type="number" placeholder="Opening balance"></div>
 <button class="s" onclick="addAcc()">Add account</button></div>
-<div class="card"><h3>Add entry</h3>
-<select id="ty"><option value="debit">Debit (money out)</option><option value="credit">Credit (money in)</option></select>
-<input id="am" type="number" placeholder="Amount"><div class="row"><input id="dt" type="date" value="${today()}"><select id="md">${MODES.map(x=>`<option>${x}</option>`)}</select></div>
-<select id="ac">${opts()}</select><input id="nt" placeholder="Note (e.g. groceries, salary)">
-<button onclick="addTxn()">Save entry</button></div>`}
+<div class="card"><h3>${E?'Edit entry':'Add entry'}</h3>
+<select id="ty"><option value="debit">Debit (money out)</option><option value="credit" ${e.type=='credit'?'selected':''}>Credit (money in)</option></select>
+<input id="am" type="number" placeholder="Amount" value="${e.amt||''}"><div class="row"><input id="dt" type="date" value="${e.date||today()}"><select id="md">${MODES.map(x=>`<option ${x==e.mode?'selected':''}>${x}</option>`).join('')}</select></div>
+<select id="ac">${D.accounts.map(a=>`<option value="${a.id}" ${a.id==e.acc?'selected':''}>${a.name}</option>`).join('')}</select><input id="wh" placeholder="Paid to / received from (person or shop)" value="${esc(e.who)}"><input id="nt" placeholder="Note (optional)" value="${esc(e.note)}">
+<button onclick="addTxn()">${E?'Update entry':'Save entry'}</button>${E?'<button class="s" onclick="E=null;render()">Cancel</button>':''}</div>`}
 function addAcc(){const n=$('#an').value.trim();if(!n)return;D.accounts.push({id:uid(),name:n,open:+$('#ao').value||0});save();render()}
 function addTxn(){const a=+$('#am').value;if(!a)return alert('Enter an amount');
-D.txns.push({id:uid(),type:$('#ty').value,amt:a,date:$('#dt').value,mode:$('#md').value,acc:$('#ac').value,note:$('#nt').value});save();render()}
-function filt(){return D.txns.filter(t=>(!F.from||t.date>=F.from)&&(!F.to||t.date<=F.to)&&(!F.q||(t.note+t.mode).toLowerCase().includes(F.q.toLowerCase()))).sort((a,b)=>b.date.localeCompare(a.date))}
+const o={type:$('#ty').value,amt:a,date:$('#dt').value,mode:$('#md').value,acc:$('#ac').value,note:$('#nt').value,who:$('#wh').value};if(E){Object.assign(D.txns.find(t=>t.id==E),o);E=null}else D.txns.push({id:uid(),...o});save();render()}
+function filt(){return D.txns.filter(t=>(!F.from||t.date>=F.from)&&(!F.to||t.date<=F.to)&&(!F.q||(t.note+t.mode+(t.who||'')).toLowerCase().includes(F.q.toLowerCase()))).sort((a,b)=>b.date.localeCompare(a.date))}
 function txn(){const L=filt();return `<div class="card"><h3>Search entries</h3><div class="row"><input type="date" value="${F.from}" onchange="F.from=this.value;render()"><input type="date" value="${F.to}" onchange="F.to=this.value;render()"></div>
 <input placeholder="Search note or mode" value="${F.q}" onchange="F.q=this.value;render()"><button class="s" onclick="F={from:'',to:'',q:''};render()">Clear</button></div>
-<div class="card">${L.map(t=>`<div class="t"><span>${t.date}<br><span class="m">${t.mode} · ${(D.accounts.find(a=>a.id==t.acc)||{}).name||''} ${t.note?'· '+t.note:''}</span></span>
-<span><b class="${t.type=='credit'?'cr':'db'}">${t.type=='credit'?'+':'-'}${inr(t.amt)}</b><button class="x" onclick="delTxn(${t.id})">✕</button></span></div>`).join('')||'<div class="m">No entries found.</div>'}</div>`}
+<div class="card">${L.map(t=>`<div class="t"><span>${t.date}<br><span class="m">${t.who?(t.type=='credit'?'From ':'To ')+t.who+' · ':''}${t.mode} · ${(D.accounts.find(a=>a.id==t.acc)||{}).name||''} ${t.note?'· '+t.note:''}</span></span>
+<span><b class="${t.type=='credit'?'cr':'db'}">${t.type=='credit'?'+':'-'}${inr(t.amt)}</b><button class="x" onclick="editTxn(${t.id})">✎</button><button class="x" onclick="delTxn(${t.id})">✕</button></span></div>`).join('')||'<div class="m">No entries found.</div>'}</div>`}
 function delTxn(id){if(confirm('Delete this entry?')){D.txns=D.txns.filter(t=>t.id!=id);save();render()}}
 /* Reports */
 function csv(from,to){const L=D.txns.filter(t=>t.date>=from&&t.date<=to).sort((a,b)=>a.date.localeCompare(b.date));
-const r=[['Date','Type','Amount','Mode','Account','Note']].concat(L.map(t=>[t.date,t.type,t.amt,t.mode,(D.accounts.find(a=>a.id==t.acc)||{}).name,t.note]));
+const r=[['Date','Type','Amount','Mode','Account','Note','Person']].concat(L.map(t=>[t.date,t.type,t.amt,t.mode,(D.accounts.find(a=>a.id==t.acc)||{}).name,t.note,t.who]));
 const ci=L.filter(t=>t.type=='credit').reduce((s,t)=>s+ +t.amt,0),co=L.filter(t=>t.type=='debit').reduce((s,t)=>s+ +t.amt,0);
 r.push([],['Total credit','',ci],['Total debit','',co],['Net','',ci-co]);
 dl(r.map(x=>x.map(c=>`"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n'),`report_${from}_to_${to}.csv`,'text/csv')}
@@ -123,7 +123,27 @@ function set(){return `<div class="card"><h3>Back up to Google Drive</h3>
 <div class="m">Pick "Save to Drive" in the share sheet. Your data is also auto-backed up by Android to your Google account.</div></div>
 <div class="card"><h3>Restore</h3><input type="file" accept=".json,application/json" onchange="restore(this)">
 <div class="m">Choose a finance-backup.json file (from Drive or Downloads).</div></div>
+<div class="card"><h3>Reset from now</h3><button class="s" style="color:var(--db);border-color:var(--db)" onclick="resetNow()">Backup &amp; start fresh</button><div class="m">Saves a backup, clears all entries, and sets today's balances as opening balances. Loans and due payments are kept.</div></div>
 <div class="card"><h3>Save backup to Downloads</h3><button class="s" onclick="dl(JSON.stringify(D),'finance-backup.json','application/json')">Download JSON backup</button></div>`}
 function restore(i){const f=i.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.txns)throw 0;if(confirm('Replace current data with this backup?')){D=d;save();render()}}catch(e){alert('Not a valid backup file')}};r.readAsText(f)}
+let E=null,U=null;const esc=s=>(s||'').replace(/"/g,'&quot;');
+function editTxn(id){E=id;tab='home';render();scrollTo(0,0)}
+function resetNow(){if(!confirm('Backup to Downloads, clear all entries, and use current balances as opening balances?'))return;
+dl(JSON.stringify(D),'finance-backup-'+today()+'.json','application/json');D.accounts.forEach(a=>a.open=bal(a));D.txns=[];save();render();alert('Done. Opening balances updated.')}
+function sched(){if(window.Android&&Android.schedule)Android.schedule(JSON.stringify((D.ups||[]).filter(u=>!u.done).map(u=>({t:u.title+(u.who?' → '+u.who:''),a:u.amt,d:u.date,k:+u.k||0}))))}
+function due(){D.ups=D.ups||[];const e=D.ups.find(u=>u.id==U)||{},L=[...D.ups].sort((a,b)=>(a.done?1:0)-(b.done?1:0)||a.date.localeCompare(b.date));
+return `<div class="card"><h3>${U?'Edit':'Add'} upcoming payment</h3><input id="ut" placeholder="What for? (rent, insurance…)" value="${esc(e.title)}"><input id="uw" placeholder="Pay to (person / company)" value="${esc(e.who)}">
+<div class="row"><input id="ua" type="number" placeholder="Amount" value="${e.amt||''}"><input id="ud" type="date" value="${e.date||today()}"></div>
+<select id="uk">${[[0,'Alert on due day'],[1,'Alert 1 day before'],[3,'Alert 3 days before'],[7,'Alert 7 days before']].map(([v,l])=>`<option value="${v}" ${v==e.k?'selected':''}>${l}</option>`).join('')}</select>
+<button onclick="saveUp()">${U?'Update':'Add payment'}</button>${U?'<button class="s" onclick="U=null;render()">Cancel</button>':''}</div>
+<div class="card"><h3>Upcoming</h3>${L.map(u=>`<div class="t" style="${u.done?'opacity:.5':''}"><span>${u.title}<br><span class="m">${u.who?'To '+u.who+' · ':''}Due ${u.date}${u.date<today()&&!u.done?' · OVERDUE':u.done?' · paid':''}</span></span>
+<span><b class="db">${inr(u.amt)}</b>${u.done?'':`<button class="x" onclick="payUp(${u.id})">✔</button>`}<button class="x" onclick="U=${u.id};render()">✎</button><button class="x" onclick="delUp(${u.id})">✕</button></span></div>`).join('')||'<div class="m">Nothing scheduled.</div>'}</div>`}
+function saveUp(){const a=+$('#ua').value;if(!a||!$('#ut').value)return alert('Enter purpose and amount');
+const o={title:$('#ut').value,who:$('#uw').value,amt:a,date:$('#ud').value,k:+$('#uk').value};
+if(U){Object.assign(D.ups.find(u=>u.id==U),o);U=null}else D.ups.push({id:uid(),done:false,...o});save();render()}
+function payUp(id){const u=D.ups.find(x=>x.id==id);u.done=true;
+if(confirm('Record as a debit entry?'))D.txns.push({id:uid(),type:'debit',amt:u.amt,date:today(),mode:'UPI',acc:D.accounts[0].id,note:u.title,who:u.who});save();render()}
+function delUp(id){if(confirm('Delete?')){D.ups=D.ups.filter(u=>u.id!=id);save();render()}}
+try{sched()}catch(e){}
 render();
 </script></body></html>
